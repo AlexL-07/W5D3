@@ -47,6 +47,10 @@ class User
         arr_rs
     end
 
+    def followed_questions
+        QuestionFollow.followed_questions_for_user_id(@id)
+    end
+
     def initialize(options)
         @id = options['id']
         @fname = options['fname']
@@ -117,6 +121,10 @@ class Question
         User.find_by_id(associated_author)
     end
 
+    def followers
+        QuestionFollow.followers_for_question_id(@id)
+    end
+
     def initialize(options)
         @id = options['id']
         @title = options['title']
@@ -158,6 +166,25 @@ class QuestionFollow
     end
 
     def self.followers_for_question_id(question_id)
+        users_ids = QuestionsDatabase.instance.execute(<<-SQL, question_id)
+            SELECT users.id
+            FROM users
+            JOIN question_follows ON users.id = question_follows.user_id
+            JOIN questions ON questions.id = question_follows.question_id 
+            WHERE questions.id = ?
+            SQL
+        users_ids.map { |hash_id| User.find_by_id(hash_id["id"]) }
+    end
+
+    def self.followed_questions_for_user_id(follower_user_id)
+        questions_ids = QuestionsDatabase.instance.execute(<<-SQL, follower_user_id)
+            SELECT questions.id
+            FROM questions
+            JOIN question_follows ON question_follows.question_id = questions.id
+            JOIN users ON question_follows.user_id = users.id
+            WHERE users.id = ?
+            SQL
+        questions_ids.map {|hash_id| Question.find_by_id(hash_id["id"])}
     end
 
     def initialize(options)
